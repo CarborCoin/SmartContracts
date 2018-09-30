@@ -1,3 +1,6 @@
+//solium-disable linebreak-style
+//solium-disable max-len
+
 pragma solidity ^0.4.23;
 
 import "./CarborCoin.sol";
@@ -10,7 +13,7 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
 
     // ICO Stages
     // ==========
-    enum Stage { PreSaleBonus20Percent, PreSaleBonus10Percent, PreSaleBonus5Percent, PreSaleBonus2Percent, MainSale }
+    enum Stage { PreSaleBonus20Percent, PreSaleBonus10Percent, PreSaleBonus5Percent, MainSale }
     struct StageDetail {
         Stage stage;
         uint startTime;
@@ -24,16 +27,20 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
     // Token distribution
     // ===================
     uint256 public maxTokens = 2000000000000000000000000000; // 200 000 000 tokens
-    uint256 public tokensForTeam = 1000000000000000000000000000; // 100 000 000 tokens will be minted and shared between funders, developers, partners, bounties
+    uint256 public tokensForTeam = maxTokens.div(2); // 100 000 000 tokens will be minted and shared between funders, developers, partners, bounties
     uint256 public tokensForPrivateSale = 50000000000000000000000000; // 5 000 000 tokens will be minted for private sale and early investors
+    uint256 public maxSaleTokens = maxTokens.sub(tokensForTeam).sub(tokensForPrivateSale); // 95 000 000 tokens are available for the sale
+    uint256 public softCap = 2000000000000000000000000; //2 000 000 tokens are the soft cap when tokens will be refunded it the ICO does not reach this value
+    uint public limitPreSale  = 30000000000000000000000000; //Limit tokens for the presale => 30 000 000 tokens
+
 
     // Constructor
     // ===========
-    function CarborCrowdsale(uint256 _startTime, uint256 _endTime, uint _rate, address _wallet, uint256 _cap, uint _goal, CarborCoin _token) public
+    function CarborCrowdsale(uint256 _startTime, uint256 _endTime, uint _rate, address _wallet, CarborCoin _token) public
         Crowdsale(_rate, _wallet, _token)
         TimedCrowdsale(_startTime, _endTime)
-        RefundableCrowdsale(_goal)
-        CappedCrowdsale(_cap) 
+        RefundableCrowdsale(softCap)
+        CappedCrowdsale(maxSaleTokens) 
     {
     }
 
@@ -52,9 +59,6 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
         else if (stages[uint(Stage.PreSaleBonus5Percent)].exist) {
             stages[uint(Stage.PreSaleBonus5Percent)].rate = rate.add(rate.mul(5).div(100));
         }
-        else if (stages[uint(Stage.PreSaleBonus2Percent)].exist) {
-            stages[uint(Stage.PreSaleBonus2Percent)].rate = rate.add(rate.mul(2).div(100));
-        }
         else if (stages[uint(Stage.MainSale)].exist) {
             stages[uint(Stage.MainSale)].rate = rate;
         }
@@ -62,7 +66,7 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
 
     //Define sale stage with its time boundaries
     function setStage (uint _stageNumber, uint _startTime, uint _endTime) public onlyOwner {
-        // require(_startTime >= block.timestamp);
+        // require(_startTime >= block.timestamp, "Start time must be in the future");
         require(_startTime >= openingTime, "Start time is lower than the ICO opening time");
         require(_endTime >= _startTime, "End time is lower than start time");
         require(_endTime <= closingTime, "End time is upper than the ICO closing time");
@@ -79,12 +83,8 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
             stages[uint(Stage.PreSaleBonus5Percent)] = StageDetail(Stage.PreSaleBonus5Percent, _startTime, _endTime, rate.add(rate.mul(5).div(100)), true);
             stagesLength++;
         }
-        else if (_stageNumber == uint(Stage.PreSaleBonus2Percent) && stages[uint(Stage.PreSaleBonus2Percent)].exist == false) {
-            stages[uint(Stage.PreSaleBonus2Percent)] = StageDetail(Stage.PreSaleBonus2Percent, _startTime, _endTime, rate.add(rate.mul(2).div(100)), true);
-            stagesLength++;
-        }
         else if (_stageNumber == uint(Stage.MainSale) && stages[uint(Stage.MainSale)].exist == false) {
-            require(_endTime == closingTime);
+            require(_endTime == closingTime, "Main stage end time must be the same as the crowdsale endtime");
             stages[uint(Stage.MainSale)] = StageDetail(Stage.MainSale, _startTime, _endTime, rate, true);
             stagesLength++;
         }
@@ -101,11 +101,28 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
         else if (stages[uint(Stage.PreSaleBonus5Percent)].exist && _currentTime >= stages[uint(Stage.PreSaleBonus5Percent)].startTime && _currentTime <= stages[uint(Stage.PreSaleBonus5Percent)].endTime) {
             return stages[uint(Stage.PreSaleBonus5Percent)];
         }
-        else if (stages[uint(Stage.PreSaleBonus2Percent)].exist && _currentTime >= stages[uint(Stage.PreSaleBonus2Percent)].startTime && _currentTime <= stages[uint(Stage.PreSaleBonus2Percent)].endTime) {
-            return stages[uint(Stage.PreSaleBonus2Percent)];
-        }
         else if (stages[uint(Stage.MainSale)].exist && _currentTime >= stages[uint(Stage.MainSale)].startTime && _currentTime <= stages[uint(Stage.MainSale)].endTime) {
             return stages[uint(Stage.MainSale)];
+        }
+    }
+
+    function _isOnPreSale(uint _currentTime) internal view returns (bool) {
+
+        StageDetail memory stage1 = stages[uint(Stage.PreSaleBonus20Percent)];
+        StageDetail memory stage2 = stages[uint(Stage.PreSaleBonus10Percent)];
+        StageDetail memory stage3 = stages[uint(Stage.PreSaleBonus5Percent)];
+
+        if (stage1.exist && _currentTime >= stage1.startTime && _currentTime <= stage1.endTime) {
+            return true;
+        }
+        else if (stage2.exist && _currentTime >= stage2.startTime && _currentTime <= stage2.endTime) {
+            return true;
+        }
+        else if (stage3.exist && _currentTime >= stage3.startTime && _currentTime <= stage3.endTime) {
+            return true;
+        }
+        else {
+            return false;
         }
     }
 
@@ -132,16 +149,25 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
         StageDetail memory _stage = _findCurrentStage(now);
         return _weiAmount.mul(_stage.rate);
     }
-
+    
     //Receive payments
     function () external payable {
-        buyTokens(msg.sender);
+        if (_isOnPreSale(now)) {
+            require(_getTokenAmount(msg.value) < limitPreSale, "Cannot buy more tokens than the presale limit");
+            require(token.totalSupply() < limitPreSale, "Cannot buy more tokens than the presale limit");
+            buyTokens(msg.sender);
+        }
+        else {
+            buyTokens(msg.sender);
+        }
     }
 
     // Finish: Mint Extra Tokens as needed before finalizing the Crowdsale.
     // ====================================================================
     function finish(address _teamFund, address _privateSaleFund) public onlyOwner {
-        require(!isFinalized);
+        require(_teamFund != address(0), "Team fund address is not valid");
+        require(_privateSaleFund != address(0), "Private sale fund address is not valid");
+        require(!isFinalized, "Cannot proceed to finalize and release token before the end of the crowdsale");
         uint256 alreadyMinted = token.totalSupply();
 
         uint unsoldTokens = cap.sub(alreadyMinted);

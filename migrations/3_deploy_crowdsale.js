@@ -40,8 +40,6 @@ module.exports = async (deployer, network, accounts) => {
       endTime,
       rate,
       accounts[0], //beneficiary address
-      web3.toWei(95000000 * rate, 'ether'), // Cap is 95 000 000 tokens
-      web3.toWei(2000000 * rate, 'ether'), // Goal is 2 000 000 tokens
       token.address)
   
     await token.transferOwnership(crowdsale.address)
@@ -57,17 +55,13 @@ module.exports = async (deployer, network, accounts) => {
     const startTimeStage3 = Math.round(new Date(new Date().setDate(latestTime.getDate() + 22)).getTime() / 1000)
     const endTimeStage3 = Math.round(new Date(new Date().setDate(latestTime.getDate() + 32)).getTime() / 1000)
   
-    const startTimeStage4 = Math.round(new Date(new Date().setDate(latestTime.getDate() + 33)).getTime() / 1000)
-    const endTimeStage4 = Math.round(new Date(new Date().setDate(latestTime.getDate() + 43)).getTime() / 1000)
-  
     const startTimeStage5= Math.round(new Date(new Date().setDate(latestTime.getDate() + 44)).getTime() / 1000)
     const endTimeStage5 = endTime
   
     await crowdsale.setStage(0, startTimeStage1, endTimeStage1) //Stage1 => 20% bonus
     await crowdsale.setStage(1, startTimeStage2, endTimeStage2) // Stage2 => 10% bonus
     await crowdsale.setStage(2, startTimeStage3, endTimeStage3) // Stage3 => 5% bonus
-    await crowdsale.setStage(3, startTimeStage4, endTimeStage4) // Stage4 => 2% bonus
-    await crowdsale.setStage(4, startTimeStage5, endTimeStage5) // Main Stage => rate (500)
+    await crowdsale.setStage(3, startTimeStage5, endTimeStage5) // Main Stage => rate (500)
   
     console.log("Crowdsale contract: ", crowdsale.address)
   })

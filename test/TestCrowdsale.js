@@ -23,8 +23,6 @@ contract ('CarborCrowdsale', async (accounts) => {
             mainEndTime,
             rate,
             accounts[0], //beneficiary address
-            web3.toWei(95000000 / rate, 'ether'), // Cap is 95 000 000 tokens
-            web3.toWei(2000000 / rate, 'ether'), // Goal is 2 000 000 tokens
             token.address
         )
 
@@ -116,25 +114,8 @@ contract ('CarborCrowdsale', async (accounts) => {
         assert.equal(tokensAmount.toString(10), expectedTokens, 'The sender did not receive the 525 tokens');
     })
 
-    it ('Should buy tokens and get 2% more on stage 4', async() => {
-        const startTime = mainStartTime;
-        const endTime = mainStartTime + 120;
-
-        await crowdsale.setStage(3, startTime, endTime) //Stage3 => 2% bonus
-
-        await crowdsale.addAddressToWhitelist(accounts[7]);
-        await crowdsale.sendTransaction({ from: accounts[7], value: web3.toWei(1, 'ether') });
-        const totalSupply = await token.totalSupply();
-
-        const expectedTokens = 510000000000000000000;
-
-        assert.equal(totalSupply.toString(10), expectedTokens, 'Total supply is not equal to 510 tokens')
-        const tokensAmount = await token.balanceOf(accounts[7]);
-        assert.equal(tokensAmount.toString(10), expectedTokens, 'The sender did not receive the 510 tokens');
-    })
-
     it ('Should buy tokens on main sale', async() => {
-        await crowdsale.setStage(4, mainStartTime, mainEndTime) //Stage4 => Main sale
+        await crowdsale.setStage(3, mainStartTime, mainEndTime) //Stage3 => Main sale
 
         await crowdsale.addAddressToWhitelist(accounts[7]);
         await crowdsale.sendTransaction({ from: accounts[7], value: web3.toWei(1, 'ether') });
@@ -167,6 +148,40 @@ contract ('CarborCrowdsale', async (accounts) => {
         const tokensAmount = await token.balanceOf(accounts[7]);
         assert.equal(tokensAmount.toString(10), expectedTokens, 'The sender did not receive the 840 tokens');
     })
+
+    it ('Should not buy token when presale limit is reached', async () => {
+        const startTime = mainStartTime;
+        const endTime = mainStartTime + 120;
+
+        await crowdsale.setStage(2, startTime, endTime) //Stage2 => 5% bonus
+        await crowdsale.addAddressToWhitelist(accounts[7]);
+
+        try {
+            await crowdsale.sendTransaction({ from: accounts[7], value: web3.toWei(80000, 'ether') });
+        }
+        catch(e) {
+            assert.notEqual(undefined, e)
+            assert.equal(true, e.message.includes("Cannot buy more tokens than the presale limit"))
+        }
+    })
+
+    it ('Should not buy token when presale limit is reached', async () => {
+        const startTime = mainStartTime;
+        const endTime = mainStartTime + 120;
+
+        await crowdsale.setStage(2, startTime, endTime) //Stage2 => 5% bonus
+        await crowdsale.addAddressToWhitelist(accounts[7]);
+
+        try {
+            await crowdsale.sendTransaction({ from: accounts[7], value: web3.toWei(60000, 'ether') });
+            await crowdsale.sendTransaction({ from: accounts[7], value: web3.toWei(30000, 'ether') });
+        }
+        catch(e) {
+            assert.notEqual(undefined, e)
+            assert.equal(true, e.message.includes("Cannot buy more tokens than the presale limit"))
+        }
+    })
+
 
     // TO TEST, comment line 133 on CarborCrowdsale.sol
     // it ('Should finalize the crowdsale', async () => {
