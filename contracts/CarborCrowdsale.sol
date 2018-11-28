@@ -167,7 +167,8 @@ contract CarborCrowdsale is CappedCrowdsale, RefundableCrowdsale, MintedCrowdsal
     function finish(address _teamFund, address _privateSaleFund) public onlyOwner {
         require(_teamFund != address(0), "Team fund address is not valid");
         require(_privateSaleFund != address(0), "Private sale fund address is not valid");
-        require(!isFinalized, "Cannot proceed to finalize and release token before the end of the crowdsale");
+        require(hasClosed(), "Cannot proceed to finalize and release token before the end of the crowdsale");
+        require(!isFinalized, "Cannot proceed finalization two times");
         uint256 alreadyMinted = token.totalSupply();
 
         uint unsoldTokens = cap.sub(alreadyMinted);
